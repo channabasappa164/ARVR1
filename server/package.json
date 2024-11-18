@@ -2,6 +2,11 @@
   "name": "arvr",
   "version": "0.1.0",
   "private": true,
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.x",
+    "npm": ">=8.x"
+  },
   "dependencies": {
     "@mediapipe/pose": "^0.5.1675469404",
     "@react-three/drei": "^9.116.3",
@@ -18,12 +23,15 @@
     "express": "^4.21.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "three": "^0.170.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
