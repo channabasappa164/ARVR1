@@ -325,7 +325,7 @@ function App() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
-        const response = await fetch('http://localhost:5000/api/coordinates', {
+        const response = await fetch('https://arvr1-3.onrender.com/api/coordinates', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
