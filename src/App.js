@@ -1,298 +1,134 @@
-// import React, { useState, useRef, useEffect } from 'react';
-// import { Canvas, useFrame } from '@react-three/fiber';
-// import { OrbitControls, useGLTF } from '@react-three/drei';
-// import { AnimationMixer, Vector3 } from 'three';
-// import * as mpPose from '@mediapipe/pose'; // Import MediaPipe Pose
-// import './App.css';
-
-// const Model = ({ url, position, visible, setModelCoordinates }) => {
-//   const { scene, animations } = useGLTF(url);
-//   const mixer = useRef();
-
-//   useEffect(() => {
-//     if (animations && animations.length) {
-//       mixer.current = new AnimationMixer(scene);
-//       animations.forEach((clip) => {
-//         mixer.current.clipAction(clip).play();
-//       });
-//     }
-
-//     const extractBoneJointCoordinates = () => {
-//       const coordinates = [];
-//       scene.traverse((child) => {
-//         if (child.isBone) {
-//           const worldPosition = new Vector3();
-//           child.updateMatrixWorld(true); // Ensure matrices are up to date
-//           worldPosition.setFromMatrixPosition(child.matrixWorld);
-//           coordinates.push([worldPosition.x, worldPosition.y, worldPosition.z]);
-//         }
-//       });
-//       setModelCoordinates(coordinates);
-//       console.log('Extracted Bone Joint Coordinates:', coordinates); // Add logging
-//     };
-
-//     extractBoneJointCoordinates();
-
-//     return () => {
-//       mixer.current = null;
-//     };
-//   }, [animations, scene, setModelCoordinates, url]); // Adding url to the dependency array
-
-//   useFrame((state, delta) => {
-//     const speedFactor = 0.2;
-//     mixer.current?.update(delta * speedFactor);
-//   });
-
-//   return <primitive object={scene} position={position} visible={visible} />;
-// };
-
-// const Ground = () => (
-//   <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-//     <planeGeometry args={[200, 200]} />
-//     <meshStandardMaterial color="gray" />
-//   </mesh>
-// );
-
-// function App() {
-//   const [selectedModel, setSelectedModel] = useState('trial-1.glb');
-//   const [modelCoordinates, setModelCoordinates] = useState([]);
-//   const [videoCoordinates, setVideoCoordinates] = useState([]);
-//   const [similarity, setSimilarity] = useState(0);
-//   const [loading, setLoading] = useState(true);
-//   const videoRef = useRef(null);
-//   const canvasRef = useRef(null);
-
-//   useEffect(() => {
-//     const getWebcam = async () => {
-//       try {
-//         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-//         videoRef.current.srcObject = stream;
-//       } catch (err) {
-//         console.error("Error accessing the webcam:", err);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     getWebcam();
-//   }, []);
-
-//   useEffect(() => {
-//     const pose = new mpPose.Pose({
-//       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-//     });
-//     pose.setOptions({
-//       modelComplexity: 1,
-//       smoothLandmarks: true,
-//       enableSegmentation: false,
-//       minDetectionConfidence: 0.5,
-//       minTrackingConfidence: 0.5,
-//     });
-
-//     pose.onResults((results) => {
-//       if (results.poseLandmarks) {
-//         const coordinates = results.poseLandmarks.map((landmark) => [
-//           landmark.x,
-//           landmark.y,
-//           landmark.z,
-//         ]);
-//         setVideoCoordinates(coordinates);
-//       }
-//     });
-
-//     const sendFrameToPose = async () => {
-//       const canvas = canvasRef.current;
-//       const ctx = canvas.getContext('2d');
-//       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-//       await pose.send({ image: canvas });
-//     };
-
-//     const intervalId = setInterval(() => {
-//       sendFrameToPose();
-//     }, 1000); // Send a frame every second
-
-//     return () => clearInterval(intervalId);
-//   }, []);
-
-//   useEffect(() => {
-//     const sendCoordinatesToServer = async () => {
-//       try {
-//         const canvas = canvasRef.current;
-//         const ctx = canvas.getContext('2d');
-//         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-//         const imageData = canvas.toDataURL('image/jpeg');
-
-//         // Send both the image and model coordinates to the backend
-//         const response = await fetch('http://localhost:5000/api/coordinates', {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//           },
-//           body: JSON.stringify({ modelCoordinates, videoCoordinates }), // Sending both model and video coordinates
-//         });
-//         const data = await response.json();
-//         console.log('Similarity Percentage:', data.similarity);
-//         setSimilarity(data["similarity"]);
-//         console.log("Received model coordinates:", data.filtered_model_coordinates);
-//         console.log("Received video coordinates:", data.filtered_video_coordinates);
-//       } catch (error) {
-//         console.error('Error sending coordinates:', error);
-//       }
-//     };
-
-//     const intervalId = setInterval(() => {
-//       sendCoordinatesToServer();
-//     }, 1000);
-
-//     return () => clearInterval(intervalId);
-//   }, [modelCoordinates, videoCoordinates]);
-
-//   return (
-//     <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-//       {loading && (
-//         <div className="loading-screen">
-//           <div className="spinner"></div>
-//           <h2>Loading...</h2>
-//         </div>
-//       )}
-
-//       <div className="health-bar-container">
-//         <h2>Health Bar</h2>
-//         <div className="health-bar">
-//           <div
-//             className="health-fill"
-//             style={{
-//               width: `${similarity}%`,
-//               backgroundColor: similarity > 70 ? 'green' : similarity > 40 ? 'yellow' : 'red',
-//             }}
-//           />
-//         </div>
-//         <p>{(similarity ?? 0).toFixed(2)}%</p>
-//       </div>
-
-//       <div className="container">
-//         <div className="mediaPipe s">
-//           <video ref={videoRef} autoPlay />
-//           <canvas ref={canvasRef} width={640} height={480} style={{ display: 'none' }} />
-//         </div>
-//         <div className="modelViewer s">
-//           <select onChange={(e) => setSelectedModel(e.target.value)} value={selectedModel}>
-//             <option value="trial-1.glb">Model 1</option>
-//             <option value="trial-2.glb">Model 2</option>
-//           </select>
-//           <Canvas style={{ height: '100vh' }} shadows>
-//             <ambientLight intensity={0.5} />
-//             <directionalLight position={[10, 15, 10]} intensity={1.5} castShadow />
-//             <pointLight position={[0, 5, 0]} intensity={50} />
-//             <Model
-//               url={`/models/${selectedModel}`}
-//               position={[-2, 0, 0]}
-//               visible={true}
-//               setModelCoordinates={setModelCoordinates}
-//             />
-//             <Ground />
-//             <OrbitControls />
-//           </Canvas>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default App;
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
-import { AnimationMixer, Vector3 } from 'three';
-import * as mpPose from '@mediapipe/pose'; // Import MediaPipe Pose
+import { Vector3, AnimationMixer } from 'three';
+import * as mpPose from '@mediapipe/pose';
+import { useFrame } from '@react-three/fiber';
 import './App.css';
 
+// Component to load and display a 3D model with animations and extract bone joint coordinates
 const Model = ({ url, position, visible, setModelCoordinates }) => {
-  const { scene, animations } = useGLTF(url);
-  const mixer = useRef();
+  const { scene, animations } = useGLTF(url); // Load the 3D model and animations using the GLTF loader
+  const mixer = useRef(); // Reference for managing animations of the 3D model
 
   useEffect(() => {
+    // Initialize the animation mixer and play the animations if available
     if (animations && animations.length) {
       mixer.current = new AnimationMixer(scene);
       animations.forEach((clip) => {
-        mixer.current.clipAction(clip).play();
+        mixer.current.clipAction(clip).play(); // Play all animation clips of the model
       });
     }
 
+    // Extract and store the bone joint coordinates from the model
     const extractBoneJointCoordinates = () => {
-      const coordinates = [];
+      const coordinates = []; // Array to store coordinates
       scene.traverse((child) => {
         if (child.isBone) {
-          const worldPosition = new Vector3();
-          child.updateMatrixWorld(true);
-          worldPosition.setFromMatrixPosition(child.matrixWorld);
-          coordinates.push([worldPosition.x, worldPosition.y, worldPosition.z]);
+          // Identify bones in the model hierarchy
+          const worldPosition = new Vector3(); // Create a vector to store the bone's position
+          child.updateMatrixWorld(true); // Update the transformation matrix
+          worldPosition.setFromMatrixPosition(child.matrixWorld); // Extract the world position of the bone
+          coordinates.push([worldPosition.x, worldPosition.y, worldPosition.z]); // Add to coordinates array
         }
       });
-      setModelCoordinates(coordinates);
+      setModelCoordinates(coordinates); // Pass coordinates to the parent component
     };
 
-    extractBoneJointCoordinates();
+    extractBoneJointCoordinates(); // Call the function to extract coordinates
 
     return () => {
-      mixer.current = null;
+      mixer.current = null; // Cleanup animation mixer when the component unmounts
     };
   }, [animations, scene, setModelCoordinates]);
 
+  // Update the animation mixer on each frame for smooth animation playback
   useFrame((state, delta) => {
-    const speedFactor = 0.2;
-    mixer.current?.update(delta * speedFactor);
+    const speedFactor = 0.2; // Factor to control the speed of the animation
+    mixer.current?.update(delta * speedFactor); // Update mixer with delta time
   });
 
+  // Render the 3D model with the provided position and visibility
   return <primitive object={scene} position={position} visible={visible} />;
 };
 
+// Component to create a simple flat ground plane
 const Ground = () => (
   <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-    <planeGeometry args={[200, 200]} />
-    <meshStandardMaterial color="gray" />
+    <planeGeometry args={[200, 200]} /> {/* Large plane geometry to simulate ground */}
+    <meshStandardMaterial color="gray" /> {/* Gray material for the ground */}
   </mesh>
 );
 
 function App() {
-  const [selectedModel, setSelectedModel] = useState('trial-1.glb');
-  const [modelCoordinates, setModelCoordinates] = useState([]);
-  const [videoCoordinates, setVideoCoordinates] = useState([]);
-  const [similarity, setSimilarity] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  // State variables for managing the app's data and UI
+  const [selectedModel, setSelectedModel] = useState('trial-1.glb'); // Currently selected model
+  const [modelCoordinates, setModelCoordinates] = useState([]); // Coordinates extracted from the 3D model
+  const [videoCoordinates, setVideoCoordinates] = useState([]); // Coordinates extracted from the video feed
+  const [similarity, setSimilarity] = useState(0); // Similarity percentage between model and video coordinates
+  const [loading, setLoading] = useState(true); // Loading state for the app
+  const videoRef = useRef(null); // Reference to the video element for webcam feed
+  const canvasRef = useRef(null); // Reference to the canvas for drawing pose landmarks
 
+  // Effect to initialize webcam access
   useEffect(() => {
     const getWebcam = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoRef.current.srcObject = stream;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true }); // Request webcam access
+        videoRef.current.srcObject = stream; // Set webcam stream as the video source
       } catch (err) {
-        console.error('Error accessing the webcam:', err);
+        console.error('Error accessing the webcam:', err); // Handle errors
       } finally {
-        setLoading(false);
+        setLoading(false); // Set loading state to false after webcam initialization
       }
     };
 
-    getWebcam();
+    getWebcam(); // Call function to initialize webcam
   }, []);
 
-  useEffect(() => {
-    const pose = new mpPose.Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-    });
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+  // Function to draw pose landmarks and connections on the canvas
+  const drawLandmarksOnCanvas = (landmarks) => {
+    const canvas = canvasRef.current; // Get the canvas element
+    const ctx = canvas.getContext('2d'); // Get the canvas rendering context
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height); // Draw video frame onto the canvas
+
+    // Draw each landmark as a red circle
+    ctx.fillStyle = 'red';
+    landmarks.forEach(({ x, y }) => {
+      ctx.beginPath();
+      ctx.arc(x * canvas.width, y * canvas.height, 5, 0, 2 * Math.PI); // Scale coordinates to canvas size
+      ctx.fill();
     });
 
+    // Draw connections between landmarks using the POSE_CONNECTIONS list
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < mpPose.POSE_CONNECTIONS.length; i++) {
+      const [start, end] = mpPose.POSE_CONNECTIONS[i];
+      const startLandmark = landmarks[start];
+      const endLandmark = landmarks[end];
+      ctx.beginPath();
+      ctx.moveTo(startLandmark.x * canvas.width, startLandmark.y * canvas.height);
+      ctx.lineTo(endLandmark.x * canvas.width, endLandmark.y * canvas.height);
+      ctx.stroke();
+    }
+  };
+
+  // Initialize MediaPipe Pose for pose estimation
+  useEffect(() => {
+    const pose = new mpPose.Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`, // Specify file location
+    });
+    pose.setOptions({
+      modelComplexity: 1, // Set the complexity of the model
+      smoothLandmarks: true, // Smooth pose landmarks over time
+      enableSegmentation: false, // Disable segmentation
+      minDetectionConfidence: 0.5, // Minimum confidence for detection
+      minTrackingConfidence: 0.5, // Minimum confidence for tracking
+    });
+
+    // Handle pose results from MediaPipe
     pose.onResults((results) => {
       if (results.poseLandmarks) {
         const coordinates = results.poseLandmarks.map((landmark) => [
@@ -300,54 +136,54 @@ function App() {
           landmark.y,
           landmark.z,
         ]);
-        setVideoCoordinates(coordinates);
+        setVideoCoordinates(coordinates); // Store coordinates from video feed
+        drawLandmarksOnCanvas(results.poseLandmarks); // Draw pose on the canvas
       }
     });
 
+    // Function to send video frame to MediaPipe for pose detection
     const sendFrameToPose = async () => {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      await pose.send({ image: canvas });
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height); // Draw video frame on canvas
+      await pose.send({ image: canvas }); // Send frame to MediaPipe
     };
 
+    // Interval to continuously process video frames
     const intervalId = setInterval(() => {
       sendFrameToPose();
-    }, 1000);
+    }, 1000); // Process frame every second
 
-    return () => clearInterval(intervalId);
+    return () => clearInterval(intervalId); // Cleanup on component unmount
   }, []);
 
+  // Send coordinates to the server for similarity calculation
   useEffect(() => {
     const sendCoordinatesToServer = async () => {
       try {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
         const response = await fetch('https://arvr1-3.onrender.com/api/coordinates', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ modelCoordinates, videoCoordinates }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelCoordinates, videoCoordinates }), // Send coordinates
         });
         const data = await response.json();
-        setSimilarity(data.similarity);
+        setSimilarity(data.similarity); // Update similarity percentage
       } catch (error) {
-        console.error('Error sending coordinates:', error);
+        console.error('Error sending coordinates:', error); // Log any errors
       }
     };
 
+    // Interval to periodically send coordinates to the server
     const intervalId = setInterval(() => {
       sendCoordinatesToServer();
-    }, 1000);
+    }, 1000); // Send data every second
 
-    return () => clearInterval(intervalId);
+    return () => clearInterval(intervalId); // Cleanup on component unmount
   }, [modelCoordinates, videoCoordinates]);
 
   return (
-    <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="App">
+      {/* Show a loading screen while initializing */}
       {loading && (
         <div className="loading-screen">
           <div className="spinner"></div>
@@ -355,41 +191,46 @@ function App() {
         </div>
       )}
 
+      {/* Health bar to display the similarity percentage */}
       <div className="health-bar-container">
         <h2>Health Bar</h2>
         <div className="health-bar">
           <div
             className="health-fill"
             style={{
-              width: `${similarity}%`,
-              backgroundColor: similarity > 70 ? 'green' : similarity > 40 ? 'yellow' : 'red',
+              width: `${similarity}%`, // Fill width based on similarity
+              backgroundColor: similarity > 70 ? 'green' : similarity > 40 ? 'yellow' : 'red', // Color code
             }}
           />
         </div>
-        <p>{similarity.toFixed(2)}%</p>
+        <p>{similarity.toFixed(2)}%</p> {/* Display similarity as a percentage */}
       </div>
 
+      {/* Main container for the MediaPipe and 3D model viewer */}
       <div className="container">
-        <div className="mediaPipe s">
-          <video ref={videoRef} autoPlay />
-          <canvas ref={canvasRef} width={640} height={480} style={{ display: 'none' }} />
+        {/* Video feed and pose detection */}
+        <div className="mediaPipe">
+          <video ref={videoRef} autoPlay style={{ width: '100%', height: '100%' }} /> {/* Webcam video */}
+          <canvas ref={canvasRef} width={640} height={480} /> {/* Canvas for drawing pose */}
         </div>
-        <div className="modelViewer s">
+
+        {/* 3D model viewer with selectable models */}
+        <div className="modelViewer">
           <select onChange={(e) => setSelectedModel(e.target.value)} value={selectedModel}>
-            <option value="trial-1.glb">Model 1</option>
-            <option value="trial-2.glb">Model 2</option>
+            <option value="trial-1.glb">Exercise 1</option>
+            <option value="trial-2.glb">Exercise 2</option>
           </select>
           <Canvas style={{ height: '100vh' }} shadows>
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[10, 15, 10]} intensity={1.5} castShadow />
+            <ambientLight intensity={0.5} /> {/* Ambient light for scene */}
+            <directionalLight position={[10, 10, 10]} intensity={0.7} castShadow /> {/* Directional light */}
+            <Ground /> {/* Ground plane */}
             <Model
-              url={`/models/${selectedModel}`}
-              position={[-2, 0, 0]}
-              visible={true}
-              setModelCoordinates={setModelCoordinates}
+              url={`/models/${selectedModel}`} // Path to selected model
+              position={[0, 0, 0]} // Position in 3D space
+              visible={true} // Visibility toggle
+              setModelCoordinates={setModelCoordinates} // Function to update coordinates
             />
-            <Ground />
-            <OrbitControls />
+            <OrbitControls /> {/* Allow user to orbit and zoom in the scene */}
           </Canvas>
         </div>
       </div>
