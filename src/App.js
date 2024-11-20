@@ -161,7 +161,7 @@ function App() {
   useEffect(() => {
     const sendCoordinatesToServer = async () => {
       try {
-        const response = await fetch('https://arvr1-3.onrender.com/api/coordinates', {
+        const response = await fetch('https://arvr1-4.onrender.com/api/coordinates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ modelCoordinates, videoCoordinates }), // Send coordinates
